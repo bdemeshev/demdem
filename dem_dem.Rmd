@@ -169,15 +169,25 @@ names(pars_init)[6+m+l+n] <-"q"
 
 
 
-MCMC
+MCMC. Уже сохраненные результаты хранятся в `/estimation/pars_chain.Rds`.
 
 ```{r}
-n_sim <- 15 # jap: 15000
-n_burnin <- 5 # jap: 5000
+n_sim <- 15000 # jap: 15000
+n_burnin <- 5000 # jap: 5000
 n_mh_iters <- 10000 # jap?
 pars <- matrix(0, nrow=n_sim, ncol=length(pars_init))
-pars[1, ] <- pars_init
 colnames(pars) <- names(pars_init)
+
+
+if ("pars_chain.Rds" %in% list.files("./estimation/")) {
+  old_pars <- readRDS("./estimation/pars_chain.Rds")
+  n_sim_done <- sum(old_pars[,"q"]>0)
+  pars[1:n_sim_done,] <- old_pars
+  j_start <- n_sim_done + 1
+} else {  
+  pars[1, ] <- pars_init
+  j_start <- 2
+}
 ```
 
 
@@ -206,10 +216,10 @@ go-go-go
 time_start <- proc.time()["elapsed"]
 set.seed(13)  # wish your good luck, MCMC
 # (\rho, \alpha, \beta, \theta, \gamma, \xi, \sigma^2, v)
-for (j in 2:n_sim) {
+for (j in j_start:n_sim) {
   time_now <- proc.time()["elapsed"]
-  tima_elapsed <- round(time_now-time_start)
-  message("Doing mcmc step ",j,"/",n_sim,". Total time=",time_elapsed )
+  time_elapsed <- round(time_now-time_start)
+  message("Doing mcmc step ",j,"/",n_sim,". Time per iter=",time_elapsed/(j-j_start-1))
  
   rho <- pars[j-1, 1]
   s2 <- pars[j-1, 5+m+l]
@@ -257,7 +267,13 @@ for (j in 2:n_sim) {
   v -> pars[j, (6+m+l):(5+m+l+n)]
   q -> pars[j, 6+m+l+n]
   phi -> pars[j, 2:(m+l+4) ]
+  
+  if (j %% 10 == 0) {
+    saveRDS(pars, "./estimation/pars_chain.Rds")
+    message("Chain progress saved in 'pars_chain.Rds'")
+  }
 }
+saveRDS(pars, "./estimation/pars_chain.Rds")
 ```
 
 
