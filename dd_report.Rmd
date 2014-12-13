@@ -2,7 +2,7 @@
 title: "dd_report"
 author: "Boris Demeshev"
 date: "13 December 2014"
-output: html_document
+output: word_document
 lang: russian
 ---
 
@@ -27,18 +27,40 @@ library("microbenchmark") # test speed of various approaches
 pars <- readRDS("./estimation/pars_chain.Rds")
 pars <- as.data.frame(pars)
 pars <- dplyr::filter(pars, q>0)
+
 n_sim_done <- nrow(pars)
+pars <- mutate(pars, t = 1:n_sim_done)
 ```
 
-Всего было `r n_sim_done` симуляций.
+Всего было `r n_sim_done` симуляций. График для $\rho$ весь:
 
 ```{r}
-qplot(pars, rho, geom="density")
-qplot(pars, alpha, geom="density")
-qplot(pars, beta, geom="density")
-qplot(pars, theta, geom="density")
-qplot(pars, s2, geom="density")
-qplot(pars, q, geom="density")
+qplot(data=pars, t, rho, geom="line")
 ```
 
+Отберем с 100-го наблюдения:
+```{r}
+pars <- dplyr::filter(pars, t>100)
+```
+
+
+
+
+```{r}
+qplot(data=pars, rho, geom="density")
+qplot(data=pars, alpha, geom="density")
+qplot(data=pars, beta, geom="density")
+qplot(data=pars, theta, geom="density")
+qplot(data=pars, s2, geom="density")
+qplot(data=pars, q, geom="density")
+```
+
+```{r}
+qplot(data=pars, t, rho, geom="line")
+qplot(data=pars, t, alpha, geom="line")
+qplot(data=pars, t, beta, geom="line")
+qplot(data=pars, t, theta, geom="line")
+qplot(data=pars, t, s2, geom="line")
+qplot(data=pars, t, q, geom="line")
+```
 
