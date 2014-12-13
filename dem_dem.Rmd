@@ -218,8 +218,8 @@ set.seed(13)  # wish your good luck, MCMC
 # (\rho, \alpha, \beta, \theta, \gamma, \xi, \sigma^2, v)
 for (j in j_start:n_sim) {
   time_now <- proc.time()["elapsed"]
-  time_elapsed <- round(time_now-time_start)
-  message("Doing mcmc step ",j,"/",n_sim,". Time per iter=",time_elapsed/(j-j_start-1))
+  time_per_iter <- round((time_now-time_start)/(j-j_start-1), 2)
+  message("Doing mcmc step ",j,"/",n_sim,". Time per iter=",time_per_iter)
  
   rho <- pars[j-1, 1]
   s2 <- pars[j-1, 5+m+l]
