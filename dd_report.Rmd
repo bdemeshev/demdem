@@ -1,8 +1,12 @@
 ---
-title: "dd_report"
-author: "Boris Demeshev"
+title: "Оценка пространственной модели по российским данным"
+author: Борис Демешев
 date: "13 December 2014"
-output: word_document
+output: pdf_document
+tags:
+- mir
+- trud
+- may
 lang: russian
 ---
 
@@ -16,6 +20,10 @@ library("pander")
 library("dplyr")
 library("MHadaptive")
 library("mvtnorm")
+library("psych")
+library("pander")
+library("knitr")
+library("lme4")
 
 library("microbenchmark") # test speed of various approaches
 ```
@@ -62,5 +70,20 @@ qplot(data=pars, t, beta, geom="line")
 qplot(data=pars, t, theta, geom="line")
 qplot(data=pars, t, s2, geom="line")
 qplot(data=pars, t, q, geom="line")
+```
+
+Апостериорные средние и медианы:
+
+```{r, results="asis"}
+pars_sel <- dplyr::select(pars, rho, alpha, beta, theta, s2, q)
+short_summ <- describe(pars_sel)[,2:5]
+class(short_summ) <- "data.frame"
+pander(short_summ)
+```
+
+HPD-интервалы:
+
+```{r, results='asis'}
+pander(HPDinterval(mcmc(pars_sel)))
 ```
 
