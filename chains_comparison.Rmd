@@ -1,0 +1,46 @@
+---
+title: "dem_regional"
+output: pdf_document
+lang: russian
+---
+
+```{r, message=FALSE, warning=FALSE}
+library("ggplot2")
+library("knitr")
+library("MCMCpack")
+library("pander")
+library("MHadaptive")
+library("mvtnorm")
+library("coda")
+library("ggmcmc")
+library("dplyr")
+
+library("microbenchmark") # test speed of various approaches
+```
+
+
+загружаем все цепи:
+```{r}
+ch1 <- readRDS("./estimation/pars_chain.Rds")
+ch2 <- readRDS("./estimation/pars_chain2.Rds")
+ch3 <- readRDS("./estimation/pars_chain3.Rds")
+n_burnin <- 7500
+n_sim <- nrow(ch1)
+n_eff <- n_sim - n_burnin
+m1 <- mcmc(tail(ch1,n_eff)) # transform to mcmc object
+m2 <- mcmc(tail(ch2,n_eff)) # take last observations only
+m3 <- mcmc(tail(ch3,n_eff)) # take last observations only
+
+all_chains <- mcmc.list(m1,m2,m3)
+# head(all_chains)
+# summary(all_chains)
+```
+
+Собственно диагностика
+```{r}
+gelman.diag(all_chains)
+geweke.diag(all_chains)
+```
+
+
+

@@ -114,9 +114,11 @@ n_mh_iters <- 10000 # jap?
 pars <- matrix(0, nrow=n_sim, ncol=length(pars_init))
 colnames(pars) <- names(pars_init)
 
+pars_file <- "pars_chain3.Rds"
+pars_full_path <- paste0("./estimation/",pars_file)
 
-if ("pars_chain.Rds" %in% list.files("./estimation/")) {
-  old_pars <- readRDS("./estimation/pars_chain.Rds")
+if (pars_file %in% list.files("./estimation/")) {
+  old_pars <- readRDS(pars_full_path)
   n_sim_done <- sum(old_pars[,"q"]>0)
   pars[1:n_sim_done,] <- old_pars[1:n_sim_done,]
   j_start <- n_sim_done + 1
@@ -200,11 +202,11 @@ for (j in j_start:n_sim) {
   phi -> pars[j, 2:(m+l+4) ]
   
   if (j %% 10 == 0) {
-    saveRDS(pars, "./estimation/pars_chain.Rds")
-    message("Chain progress saved in 'pars_chain.Rds'")
+    saveRDS(pars, pars_full_path)
+    message("Chain progress saved in '", pars_file,"'")
   }
 }
-saveRDS(pars, "./estimation/pars_chain.Rds")
+saveRDS(pars, pars_full_path)
 
 
 ## ----, "MH rho test", eval=FALSE-----------------------------------------
