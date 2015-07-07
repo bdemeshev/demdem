@@ -1,4 +1,6 @@
 
+
+
 ## ----, message=FALSE, warning=FALSE--------------------------------------
 library("ggplot2")
 library("knitr")
@@ -11,24 +13,72 @@ library("mvtnorm")
 library("microbenchmark") # test speed of various approaches
 
 
+## ----, "define MH functions"---------------------------------------------
+li_rho <- function(rho) {
+  if ((rho > -1) & (rho<1)) {
+    e <- y_star - rho*Wy_star - Z %*% phi # y?
+    eVe <- sum(e^2/v) # faster than eVe <- t(e) %*% invV %*% e    
+    ans <- log(det(diag(n)-rho*W)) - 0.5*eVe/s2
+  } else ans <- -Inf
+  return(ans)
+}
+
+li_q <- function(q) {
+  ans <- ifelse(q>0, 0.5*n*q*log(0.5*q) - n*lgamma(0.5*q) - kappa*q + (a_q-1)*log(q), -Inf)
+  return(ans)
+}
+
+
+# загружаем данные
 ## ------------------------------------------------------------------------
 h <- read.csv("./data/regional_data.csv")
 W <- read.csv("./data/Wb.csv", header=FALSE)
 W <- as.matrix(W)
 
 
+
+# Переименуем для удобства:
 ## ------------------------------------------------------------------------
 h <- dplyr::rename(h, y_star = Y, Wy_star = WbY, y_0 = ln.gdppercappp., region = X) %>% 
   dplyr::select(-number)
 glimpse(h)
 
-
+# Удаляем Калининградскую Область! 
+# Она ни с кем не граничит, поэтому при пограничной $W$ 
+# нарушается свойство $W\vec{1}=\vec{1}$ и определитель $det(I_{n\times n }-\rho W)$ оказывается отрицательным. 
+# А он фигурирует в плотностях. 
 ## ------------------------------------------------------------------------
 n_kalin <- which(h$region=="Kaliningrad region")
 h <- filter(h, !region=="Kaliningrad region")
 W <- W[-n_kalin,-n_kalin]
 
-
+# Априорные распределения:
+#   
+#   1. $\rho \sim U[-1;1]$
+#   
+#   2. $\phi \sim $ diffuse
+# 
+# 3. $\sigma^2_{\varepsilon} \sim $ standard diffuse ???
+# 
+# 4. $q \sim \Gamma(a_q, b_q)$
+#   
+#   5. $v_i^{-1} | q \sim iid \chi^2(q)$, $v_i$ --- diagonal of $V$
+#   
+#   6. $Var(\varepsilon) = \sigma^2_{\varepsilon} V$ ?
+# 
+# Упрощенная модель 
+# \[
+#   y^* = \rho Wy^* + \alpha i + \beta y_0 + X\gamma + \varepsilon
+#   \]
+# 
+# Полная из статьи
+# \[
+#   y^* = \rho Wy^* + \alpha i + \beta y_0 +\theta Wy_0 + X\gamma + WX\xi +  \varepsilon
+#   \]
+# 
+# 
+# 
+# Упрощения: $\theta=0$, $\xi=0$
 ## ------------------------------------------------------------------------
 X <- as.matrix(h[,5:17])
 WX <- W %*% X
@@ -53,6 +103,16 @@ Z <- cbind( rep(1, n), y_0, Wy_0, X, C)
 ## pars <- c(rho, phi, s2, v, q) # last change: q
 
 
+# \[
+#   (\rho, \alpha, \beta, \theta, \gamma, \xi, \sigma^2, v, q)
+#   \]
+# 
+# 
+# $\xi, \gamma \in R^{`r m`}$, $v\in R^{`r n`}$
+#   
+#   
+#   Параметры априорных распределений и кое-какие предрасчеты:
+
 ## ----, results='asis'----------------------------------------------------
 a_a <- 0.001 # page 63 bottom  or a_sigma top of the same page:)
 b_a <- 0.001
@@ -65,6 +125,10 @@ S <- 10^12 * diag(m+l+3)
 # precalculate
 invS <- solve(S)
 invSr <- invS %*% r
+
+# Инициализируем параметры случайно по априорному распределению
+# 
+# Если $q_{init}=0$, то все `rchisq` будут равны нулю. Так нам не надо!
 
 
 ## ------------------------------------------------------------------------
@@ -97,6 +161,7 @@ pars_init[6+m+l+n] <- q
 #s2_init <- deviance(model_0)/df.residual(model_0)
 #pars_init <- c(rho_init, alpha_init, btgxi, s2_init, v_init)
 
+# Именуем вектор параметров:
 
 ## ------------------------------------------------------------------------
 names(pars_init)[1:4] <- c("rho", "alpha", "beta", "theta")
@@ -106,17 +171,24 @@ names(pars_init)[5+m+l] <- "s2"
 names(pars_init)[(6+m+l):(5+m+l+n)] <- paste0(rep("v",n),1:n)
 names(pars_init)[6+m+l+n] <-"q"
 
+# MCMC. Уже сохраненные результаты хранятся в `/estimation/`+pars_file.
 
 ## ------------------------------------------------------------------------
-n_sim <- 15000 # jap: 15000
-n_burnin <- 5000 # jap: 5000
-n_mh_iters <- 10000 # jap?
+n_sim <- 20000 # jap: 15000
+# n_burnin <- 5000 # jap: 5000 # not used, we remove them later
+n_mh_iters <- 20000 # jap?
+n_chains <- 9
+
+set.seed(13)  # wish your good luck, MCMC
+for (chain_no in 1:n_chains) { # we create 9 chains :)
+
 pars <- matrix(0, nrow=n_sim, ncol=length(pars_init))
 colnames(pars) <- names(pars_init)
 
-pars_file <- "pars_chain3.Rds"
+pars_file <- paste0("pars_chain_",chain_no,".Rds")
 pars_full_path <- paste0("./estimation/",pars_file)
 
+# if files already exist we add simultations to them!
 if (pars_file %in% list.files("./estimation/")) {
   old_pars <- readRDS(pars_full_path)
   n_sim_done <- sum(old_pars[,"q"]>0)
@@ -128,26 +200,14 @@ if (pars_file %in% list.files("./estimation/")) {
 }
 
 
-## ----, "define MH functions"---------------------------------------------
-li_rho <- function(rho) {
-  if ((rho > -1) & (rho<1)) {
-    e <- y_star - rho*Wy_star - Z %*% phi # y?
-    eVe <- sum(e^2/v) # faster than eVe <- t(e) %*% invV %*% e    
-    ans <- log(det(diag(n)-rho*W)) - 0.5*eVe/s2
-  } else ans <- -Inf
-  return(ans)
-}
-
-li_q <- function(q) {
-  ans <- ifelse(q>0, 0.5*n*q*log(0.5*q) - n*lgamma(0.5*q) - kappa*q + (a_q-1)*log(q), -Inf)
-  return(ans)
-}
 
 
+
+# go-go-go (one chain)
 
 ## ------------------------------------------------------------------------
 time_start <- proc.time()["elapsed"]
-set.seed(13)  # wish your good luck, MCMC
+
 # (\rho, \alpha, \beta, \theta, \gamma, \xi, \sigma^2, v)
 for (j in j_start:n_sim) {
   time_now <- proc.time()["elapsed"]
@@ -207,6 +267,8 @@ for (j in j_start:n_sim) {
   }
 }
 saveRDS(pars, pars_full_path)
+
+} # end chain no cycle
 
 
 ## ----, "MH rho test", eval=FALSE-----------------------------------------
