@@ -34,7 +34,7 @@ library("microbenchmark") # test speed of various approaches
 ```{r}
 pars <- readRDS("./estimation/pars_chain.Rds")
 pars <- as.data.frame(pars)
-pars <- dplyr::filter(pars, q>0)
+# pars <- dplyr::filter(pars, q>0) # was ist das?
 
 n_sim_done <- nrow(pars)
 pars <- mutate(pars, t = 1:n_sim_done)
@@ -86,4 +86,24 @@ HPD-интервалы:
 ```{r, results='asis'}
 pander(HPDinterval(mcmc(pars_sel)))
 ```
+
+
+Наличие бимодального распределения для бета:
+
+```{r}
+files <- c("./estimation/pars_chain.Rds","./estimation/pars_chain2.Rds","./estimation/pars_chain3.Rds")
+for (f in files) {
+  pars <- readRDS(f)
+  pars <- as.data.frame(pars)
+  # pars <- dplyr::filter(pars, q>0) # was ist das?
+
+  n_sim_done <- nrow(pars)
+  pars <- mutate(pars, t = 1:n_sim_done)
+  pars <- dplyr::filter(pars, t>100)
+  
+  g <- qplot(data=pars, beta, geom="density", main=f)
+  print(g)
+}
+```
+
 
