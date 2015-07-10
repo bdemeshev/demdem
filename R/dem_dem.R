@@ -31,8 +31,8 @@ li_q <- function(q) {
 
 # загружаем данные
 ## ------------------------------------------------------------------------
-h <- read.csv("./data/regional_data.csv")
-W <- read.csv("./data/Wb.csv", header=FALSE)
+h <- read.csv("../data/regional_data.csv")
+W <- read.csv("../data/Wb.csv", header=FALSE)
 W <- as.matrix(W)
 
 
