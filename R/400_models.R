@@ -1,14 +1,8 @@
-library("readr")
+library("foreach")
 
-parallel <- TRUE
+parallel <- "off" # "windows"/"unix"/"off"
 
-create_model_list <- function() {
-  df <- expand.grid(type="mcmc", chain_no=1:5, status="not estimated", 
-                  sample=c("west","east","all"), W=c("border","road"))
-  df <- df %>% mutate_each("as.factor",type, status, sample, W) %>% mutate(seed=chain_no+42)
-  df <- df %>% mutate(file=paste0(type,"_",W,"_",sample,"_",chain_no,".Rds"), id=row_number())
-return(df)
-}
+source("400_model_funs.R")
 
 # create model list
 mlist <- create_model_list()
