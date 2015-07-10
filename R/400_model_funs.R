@@ -42,7 +42,7 @@ estimate_models <- function(mlist, parallel = parallel, no_reestimation=TRUE) {
   }
   
   if (parallel=="off") {
-    foreach(i=model_ids, .packages=c("mvtnorm","MHadaptive","MCMCpack")) %do% {
+    for (i in model_ids)  {
       model_info <- mlist_todo %>% dplyr::filter(id==i)
       status <- estimate_model(model_info)
       mlist$value[(mlist$id==i)&(mlist$variable=="status")] <- status
@@ -54,7 +54,7 @@ estimate_models <- function(mlist, parallel = parallel, no_reestimation=TRUE) {
 
 
 ## ----, "define MH functions"---------------------------------------------
-li_rho <- function(rho) {
+li_rho <- function(rho, y_star, W, Wy_star, Z, phi, v, n, s2) {
   if ((rho > -1) & (rho<1)) {
     e <- y_star - rho*Wy_star - Z %*% phi # y?
     eVe <- sum(e^2/v) # faster than eVe <- t(e) %*% invV %*% e    
@@ -63,7 +63,7 @@ li_rho <- function(rho) {
   return(ans)
 }
 
-li_q <- function(q) {
+li_q <- function(q, n, kappa, a_q) {
   ans <- ifelse(q>0, 0.5*n*q*log(0.5*q) - n*lgamma(0.5*q) - kappa*q + (a_q-1)*log(q), -Inf)
   return(ans)
 }
@@ -246,12 +246,14 @@ estimate_model <- function(model_info) {
       v <- (q+e^2/s2)/rw_c # error in Seya 2012 (27), see Kakamura 2008 (3) 
       
       # step d
-      mcmc_out <- Metro_Hastings(li_rho, pars = rho, iterations = n_mh_iters, quiet = TRUE)
+      mcmc_out <- Metro_Hastings(li_rho, pars = rho, iterations = n_mh_iters, quiet = TRUE,
+                      y_star=y_star, W=W, Wy_star=Wy_star, Z=Z, phi=phi, v=v, n=n, s2=s2)
       rho <- tail(mcmc_out$trace,1)
       
       # step e
       kappa <- 0.5 * (sum(log(v))+sum(1/v)) + b_q
-      mcmc_out <- Metro_Hastings(li_q, pars = q, iterations = n_mh_iters, quiet = TRUE)
+      mcmc_out <- Metro_Hastings(li_q, pars = q, iterations = n_mh_iters, quiet = TRUE,
+                                 n=n, kappa=kappa,a_q=a_q)
       q <- tail(mcmc_out$trace,1)
       
       
