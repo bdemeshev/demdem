@@ -17,10 +17,16 @@ create_model_list <- function() {
 
 
 estimate_models <- function(mlist, parallel = parallel, no_reestimation=TRUE) {
-  if (no_reestimation) mlist_todo <- dplyr::filter(mlist, !status=="estimated")
+  mlist_todo <- mlist
+  model_ids <- unique(mlist$id)
+
+  if (no_reestimation) {
+    temp <- dplyr::filter(mlist, variable=="status") %>% filter(!value=="estimated")
+    model_ids <- temp$id
+    mlist_todo <- filter(mlist, id %in% model_ids)
+  }  
   
-  model_ids <- unique(mlist_todo$id)
-  
+
   
   if (parallel=="windows") {
     library("doSNOW")
@@ -30,7 +36,7 @@ estimate_models <- function(mlist, parallel = parallel, no_reestimation=TRUE) {
     foreach(i=model_ids, .packages=c("mvtnorm","MHadaptive","MCMCpack")) %dopar% {
       model_info <- mlist_todo %>% dplyr::filter(id==i)
       status <- estimate_model(model_info)
-      mlist$status[mlist$id==i] <- status
+      mlist$value[(mlist$id==i)&(mlist$variable=="status")] <- status
     }
     stopCluster(cl)
   }
@@ -39,7 +45,7 @@ estimate_models <- function(mlist, parallel = parallel, no_reestimation=TRUE) {
     foreach(i=model_ids, .packages=c("mvtnorm","MHadaptive","MCMCpack")) %do% {
       model_info <- mlist_todo %>% dplyr::filter(id==i)
       status <- estimate_model(model_info)
-      mlist$status[mlist$id==i] <- status
+      mlist$value[(mlist$id==i)&(mlist$variable=="status")] <- status
     }
   }
   return(mlist) # statuses are updated
@@ -175,9 +181,9 @@ estimate_model <- function(model_info) {
   # MCMC. Уже сохраненные результаты хранятся в `/estimation/`+pars_file.
   
   ## ------------------------------------------------------------------------
-  n_sim <- 15000 # jap: 15000
+  n_sim <- 15 # jap: 15000
   # n_burnin <- 5000 # jap: 5000 # not used, we remove them later
-  n_mh_iters <- 10000 # jap?
+  n_mh_iters <- 1001 # jap?
   n_chains <- 9
   
 
